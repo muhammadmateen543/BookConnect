@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="?android:attr/selectableItemBackground">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <TextView
+            android:id="@+id/tvTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.8"
+            android:text="Book Title"
+            android:textStyle="bold"
+            android:textSize="18sp"
+            android:textColor="@android:color/black" />
+        <RelativeLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="0.1"
+            android:id="@+id/cancelbtn">
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:src="@drawable/crossicon"/>
+        </RelativeLayout>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tvSellPrice"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Bid Price: $100"
+        android:textSize="16sp"
+        android:layout_marginTop="4dp"
+        android:textColor="@color/black"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/tvExchangeBook"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Bid Book: Another Book"
+        android:textSize="16sp"
+        android:layout_marginTop="4dp"
+        android:textColor="@android:color/black"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/tvDealMode"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Deal Mode: Sell"
+        android:textSize="16sp"
+        android:gravity="end|center_vertical"
+        android:textStyle="italic"
+        android:layout_marginTop="4dp"
+        android:textColor="@color/black" />
+
+</LinearLayout>

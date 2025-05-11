@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:title="Edit Profile"
+        android:icon="@drawable/edit_icon"
+        android:id="@+id/profile_navigation"/>
+    <item
+        android:title="Notifications"
+        android:icon="@drawable/notificationlogo"
+        android:id="@+id/notification_navigation"/>
+    <item
+        android:title="Log Out"
+        android:icon="@drawable/log_out_icon"
+        android:id="@+id/logout_navigation"/>
+</menu>

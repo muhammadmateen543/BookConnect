@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:title="Home"
+        android:icon="@drawable/home_icon"
+        android:id="@+id/home_navigation"/>
+    <item
+        android:title="Chats"
+        android:icon="@drawable/chatboxlogo"
+        android:id="@+id/chat_navigation"/>
+    <item
+        android:title="Sell"
+        android:icon="@drawable/plus_icon"
+        android:id="@+id/sell_navigation"/>
+    <item
+        android:title="My Books"
+        android:icon="@drawable/books_icon"
+        android:id="@+id/mybooks_navigation"/>
+    <item
+        android:title="My Offers"
+        android:icon="@drawable/offer_icon"
+        android:id="@+id/myoffers_navigation"/>
+</menu>
