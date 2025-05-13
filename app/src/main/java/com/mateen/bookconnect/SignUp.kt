@@ -80,6 +80,7 @@ class SignUp : AppCompatActivity() {
             bitmap?.let {
                 if(isBase64UnderFirestoreLimit(bitmapToBase64(bitmap))) {
                     profile_pic.setImageBitmap(bitmap)
+                    profile_pic.setBackgroundResource(0)
                 }
                 else{
                     Toast.makeText(this, "Failed. Selected Image > 1 MB", Toast.LENGTH_LONG).show()
@@ -95,6 +96,7 @@ class SignUp : AppCompatActivity() {
                 bitmap?.let {
                     if(isBase64UnderFirestoreLimit(bitmapToBase64(bitmap))) {
                         profile_pic.setImageBitmap(bitmap)
+                        profile_pic.setBackgroundResource(0)
                     }
                     else{
                         Toast.makeText(this, "Failed. Captured Image > 1 MB", Toast.LENGTH_LONG).show()
@@ -137,7 +139,7 @@ class SignUp : AppCompatActivity() {
             var adcreate = ad.create()
             adcreate.show()
         }
-        btsignup.setOnClickListener {btsignup.setOnClickListener {
+        btsignup.setOnClickListener {
             val name = etName.text.toString().trim()
             val email = etEmail.text.toString().trim()
             val password = etPassword.text.toString().trim()
@@ -158,7 +160,9 @@ class SignUp : AppCompatActivity() {
                     btsignup.isEnabled = false // disable to prevent multiple clicks
                     auth.createUserWithEmailAndPassword(email, password)
                         .addOnCompleteListener { task ->
+                            Log.d("REGISTER", "IN ON COMPLETE LISTENER")
                             if (task.isSuccessful) {
+                                Log.d("REGISTER", "IN IS SUCCESSFUL")
                                 val userId = auth.currentUser?.uid
                                 if (userId != null) {
                                     val usr = hashMapOf(
@@ -179,8 +183,12 @@ class SignUp : AppCompatActivity() {
                                                 val intent = Intent(this, MainActivity::class.java)
                                                 startActivity(intent)
                                                 this.finish()
+                                            } else{
+                                                ShowError(this).showError("Profile Picture cannot be saved.")
                                             }
                                         }
+                                }else{
+                                    ShowError(this).showError("User cannot be saved.")
                                 }
                             } else {
                                 ShowError(this).showError("Signup failed.")
@@ -189,7 +197,6 @@ class SignUp : AppCompatActivity() {
                         }
                 }
             }
-        }
         }
         btgotologin.setOnClickListener {
             var intent = Intent(this, LogIn::class.java)

@@ -30,10 +30,11 @@
             android:id="@+id/iv_profile_chat"
             android:layout_width="50dp"
             android:layout_height="match_parent"
-            android:background="@drawable/circle"
             android:src="@drawable/profile_icon"
             android:layout_marginEnd="10dp"
             android:padding="2dp"
+            android:scaleType="centerCrop"
+            android:background="@drawable/circle1"
             android:clipToOutline="true"/>
 
         <TextView
@@ -63,7 +64,10 @@
             android:id="@+id/editTextMessage"
             android:layout_width="0dp"
             android:layout_weight="1"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
+            android:background="@drawable/searchbox"
+            android:paddingHorizontal="5dp"
+            android:gravity="center_vertical"
             android:hint="Type a message" />
 
         <ImageButton

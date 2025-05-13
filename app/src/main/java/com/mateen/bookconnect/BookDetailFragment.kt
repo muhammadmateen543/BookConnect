@@ -65,8 +65,6 @@ class BookDetailFragment : Fragment() {
     private lateinit var placeBidButtonLayout: LinearLayout
     private lateinit var placeBidButtonIcon: ImageView
 
-    private lateinit var messageButton: ImageView
-
     private lateinit var bidPriceTextView: TextView
     private lateinit var bidBookTextView: TextView
     private lateinit var bidBookLayout: LinearLayout
@@ -93,6 +91,7 @@ class BookDetailFragment : Fragment() {
             dealMode=it.getString("dealMode").toString()
             pricee=it.getString("price").toString()
             exchangeBooke=it.getString("exchangeBook").toString()
+            Toast.makeText(requireContext(), dealMode, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -127,8 +126,6 @@ class BookDetailFragment : Fragment() {
 
         placeBidButtonLayout = view.findViewById(R.id.btnbid)
         placeBidButtonIcon = placeBidButtonLayout.findViewById(R.id.markdone)
-
-        messageButton = view.findViewById(R.id.message_btn)
 
         bidPriceTextView = view.findViewById(R.id.tvbidprice)
         bidBookTextView = view.findViewById(R.id.tvbidbook)
@@ -198,87 +195,6 @@ class BookDetailFragment : Fragment() {
 
         backButton.setOnClickListener {
             parentFragmentManager.popBackStack()
-        }
-
-        messageButton.setOnClickListener {
-            messageButton.isEnabled = false
-            val currentUid = auth.currentUser?.uid
-            if (currentUid == null) {
-                Toast.makeText(requireContext(), "User not authenticated", Toast.LENGTH_SHORT).show()
-                messageButton.isEnabled = true
-                return@setOnClickListener
-            }
-
-            GlobalScope.launch(Dispatchers.IO) {
-                try {
-                    val bookDoc = firestoreDB.collection("TradeBooks").document(bookId).get().await()
-                    val otherUid = bookDoc.getString("uid") ?: throw Exception("Book owner not found")
-
-                    // Check or create chat
-                    // Query chats where currentUid is a participant
-                    val chatSnapshot = firestoreDB.collection("chats")
-                        .whereArrayContains("participants", currentUid)
-                        .get()
-                        .await()
-
-                    // Filter chats to find one with both currentUid and otherUid
-                    var chatId: String? = null
-                    for (doc in chatSnapshot.documents) {
-                        val participants = doc.get("participants") as? List<String>
-                        if (participants != null && participants.contains(otherUid)) {
-                            chatId = doc.getString("chatId")
-                            break
-                        }
-                    }
-                    if (chatId == null) {
-                        chatId = firestoreDB.collection("chats").document().id
-                    }
-
-                    // Fetch profile picture and username
-                    val picSnapshot = firestoreDB.collection("Base64Images")
-                        .document(otherUid)
-                        .collection("ProfilePicture")
-                        .get()
-                        .await()
-                    val base64Image = picSnapshot.documents.firstOrNull()?.getString("base64")
-                    val profileImage = base64ToBitmap(base64Image.toString())
-
-                    val userSnapshot = firestoreDB.collection("users")
-                        .document(otherUid)
-                        .get()
-                        .await()
-                    val otherUserName = userSnapshot.getString("Full Name") ?: "Unknown User"
-
-                    val chat = mapOf(
-                        "chatId" to chatId,
-                        "participants" to listOf(currentUid, otherUid),
-                        "lastMessage" to "",
-                        "lastMessageTimestamp" to 0,
-                    )
-                    firestoreDB.collection("chats").document(chatId).set(chat).await()
-
-                    // Navigate to ChatDetailFragment
-                    launch(Dispatchers.Main) {
-                        val bundle = Bundle().apply {
-                            putParcelable("profilePicture", profileImage)
-                            putString("ChatName", otherUserName)
-                            putString("ChatId", chatId)
-                        }
-                        val fragment = ChatDetailFragment().apply { arguments = bundle }
-                        parentFragmentManager.beginTransaction()
-                            .replace(R.id.fm_main_activity, fragment)
-                            .addToBackStack(null)
-                            .commit()
-                        messageButton.isEnabled = true
-                    }
-                } catch (e: Exception) {
-                    launch(Dispatchers.Main) {
-                        Toast.makeText(requireContext(), "Failed to load chat: ${e.message}", Toast.LENGTH_SHORT).show()
-                        Log.e("BookDetailFragment", "Failed to load chat", e)
-                        messageButton.isEnabled = true
-                    }
-                }
-            }
         }
 
         fetchBookDetailsAndSetupUI()

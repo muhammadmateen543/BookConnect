@@ -5,8 +5,10 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import android.os.Bundle
 import android.text.InputType
 import android.util.Base64
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -21,10 +23,15 @@ import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContentProviderCompat.requireContext
 import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class myBooksAdapter(
     var context: Context,
@@ -190,20 +197,21 @@ class myBooksAdapter(
                                     notificationDocRef.get().addOnSuccessListener { documentSnapshot ->
 
                                         var notificationMsg = ""
-                                        if(!bidItem.bidAmount.isNullOrEmpty() && !bidItem.bidBook.isNullOrEmpty())
-                                        {
-                                            notificationMsg = "Your offer of (Amount: ${bidItem.bidAmount} and Book: ${bidItem.bidBook}) for Book ${bidItem.Title} is Accepted."
-                                        }
-                                        else if(!bidItem.bidAmount.isNullOrEmpty())
-                                        {
-                                            notificationMsg = "Your offer of (PKR ${bidItem.bidAmount}) for Book ${bidItem.Title} is Accepted."
-                                        }
-                                        else if(!bidItem.bidBook.isNullOrEmpty())
-                                        {
-                                            notificationMsg = "Your offer of (PKR ${bidItem.bidBook}) for Book ${bidItem.Title} is Accepted."
+                                        if (!bidItem.bidAmount.isNullOrEmpty() && !bidItem.bidBook.isNullOrEmpty()) {
+                                            notificationMsg =
+                                                "Your offer of (Amount: ${bidItem.bidAmount} and Book: ${bidItem.bidBook}) for Book ${bidItem.Title} is Accepted."
+                                        } else if (!bidItem.bidAmount.isNullOrEmpty()) {
+                                            notificationMsg =
+                                                "Your offer of (PKR ${bidItem.bidAmount}) for Book ${bidItem.Title} is Accepted."
+                                        } else if (!bidItem.bidBook.isNullOrEmpty()) {
+                                            notificationMsg =
+                                                "Your offer of (PKR ${bidItem.bidBook}) for Book ${bidItem.Title} is Accepted."
                                         }
                                         if (documentSnapshot.exists()) {
-                                            notificationDocRef.update("notifications", FieldValue.arrayUnion(notificationMsg))
+                                            notificationDocRef.update(
+                                                "notifications",
+                                                FieldValue.arrayUnion(notificationMsg)
+                                            )
                                         } else {
                                             val newNotification = hashMapOf(
                                                 "notifications" to listOf(notificationMsg)
@@ -217,35 +225,119 @@ class myBooksAdapter(
                                             .document(myBooks[position].bookId)
                                             .get()
                                             .addOnSuccessListener { documentSnapshot ->
-                                                val bids = documentSnapshot.get("Bids") as? List<Map<String, Any>>
+                                                val bids =
+                                                    documentSnapshot.get("Bids") as? List<Map<String, Any>>
                                                 if (bids != null) {
                                                     for (bid in bids) {
                                                         val bidderId = bid["bidderId"]?.toString()
-                                                        if (bidderId != null && bidderId!=bidItem.bidderId) {
-                                                            val notificationMsg = "Your bid for Book ${documentSnapshot.get("Title").toString()} was removed because the book was sold."
-                                                            val notificationDocRef = authdb.collection("users")
-                                                                .document(bidderId)
-                                                                .collection("Notification")
-                                                                .document("notificationsList")
+                                                        if (bidderId != null && bidderId != bidItem.bidderId) {
+                                                            val notificationMsg =
+                                                                "Your bid for Book ${
+                                                                    documentSnapshot.get("Title")
+                                                                        .toString()
+                                                                } was removed because the book was sold."
+                                                            val notificationDocRef =
+                                                                authdb.collection("users")
+                                                                    .document(bidderId)
+                                                                    .collection("Notification")
+                                                                    .document("notificationsList")
 
-                                                            notificationDocRef.get().addOnSuccessListener { notifSnapshot ->
-                                                                if (notifSnapshot.exists()) {
-                                                                    notificationDocRef.update(
-                                                                        "notifications",
-                                                                        FieldValue.arrayUnion(notificationMsg)
-                                                                    )
-                                                                } else {
-                                                                    val newNotification = hashMapOf(
-                                                                        "notifications" to listOf(notificationMsg)
-                                                                    )
-                                                                    notificationDocRef.set(newNotification)
+                                                            notificationDocRef.get()
+                                                                .addOnSuccessListener { notifSnapshot ->
+                                                                    if (notifSnapshot.exists()) {
+                                                                        notificationDocRef.update(
+                                                                            "notifications",
+                                                                            FieldValue.arrayUnion(
+                                                                                notificationMsg
+                                                                            )
+                                                                        )
+                                                                    } else {
+                                                                        val newNotification =
+                                                                            hashMapOf(
+                                                                                "notifications" to listOf(
+                                                                                    notificationMsg
+                                                                                )
+                                                                            )
+                                                                        notificationDocRef.set(
+                                                                            newNotification
+                                                                        )
+                                                                    }
                                                                 }
-                                                            }
                                                         }
                                                     }
                                                 }
                                             }
                                         //
+                                        val currentUid = auth.currentUser?.uid!!
+                                        val otherUid = bidItem.bidderId
+                                        var chatId: String? = null
+                                        authdb.collection("chats")
+                                            .whereArrayContains("participants", currentUid)
+                                            .get()
+                                            .addOnSuccessListener { chatSnapshot ->
+                                                for (doc in chatSnapshot.documents) {
+                                                    val participants =
+                                                        doc.get("participants") as? List<String>
+                                                    if (participants != null && participants.contains(
+                                                            otherUid
+                                                        )
+                                                    ) {
+                                                        chatId = doc.getString("chatId")
+                                                        break
+                                                    }
+                                                }
+                                                var content = ""
+                                                if (!bidItem.bidAmount.isNullOrEmpty() && !bidItem.bidBook.isNullOrEmpty()) {
+                                                    content =
+                                                        "Your offer of (Amount: ${bidItem.bidAmount} and Book: ${bidItem.bidBook}) for Book ${bidItem.Title} is Accepted by me."
+                                                } else if (!bidItem.bidAmount.isNullOrEmpty()) {
+                                                    content =
+                                                        "Your offer of (PKR ${bidItem.bidAmount}) for Book ${bidItem.Title} is Accepted by me."
+                                                } else if (!bidItem.bidBook.isNullOrEmpty()) {
+                                                    content =
+                                                        "Your offer of (PKR ${bidItem.bidBook}) for Book ${bidItem.Title} is Accepted by me."
+                                                }
+                                                val time = System.currentTimeMillis()
+                                                if (chatId == null) {
+                                                    chatId = authdb.collection("chats").document().id
+                                                    val chat = mapOf(
+                                                        "chatId" to chatId,
+                                                        "participants" to listOf(
+                                                            currentUid,
+                                                            otherUid
+                                                        ),
+                                                        "lastMessage" to content,
+                                                        "lastMessageTimestamp" to time
+                                                    )
+                                                    authdb.collection("chats")
+                                                        .document(chatId!!).set(chat)
+                                                        .addOnSuccessListener {
+                                                            Log.d("CHAT", "CHAT CREATED")
+                                                            val message = mapOf(
+                                                                "content" to content,
+                                                                "senderId" to currentUid,
+                                                                "timestamp" to time
+                                                            )
+                                                            Log.d("MESSAGE", "Message hashmap created")
+                                                            authdb.collection("chats")
+                                                                .document(chatId!!)
+                                                                .collection("messages")
+                                                                .add(message)
+                                                        }
+                                                } else {
+                                                    val message = mapOf(
+                                                        "content" to content,
+                                                        "senderId" to currentUid,
+                                                        "timestamp" to time
+                                                    )
+                                                    authdb.collection("chats").document(chatId!!)
+                                                        .collection("messages").add(message)
+                                                        .addOnSuccessListener {
+                                                            authdb.collection("chats").document(chatId!!)
+                                                                .update("lastMessage", content, "lastMessageTimestamp", time)
+                                                        }
+                                                }
+                                            }
                                     }
                                     val notificationDocRef1 = authdb.collection("users")
                                         .document(auth.currentUser?.uid.toString())
@@ -415,7 +507,7 @@ class myBooksAdapter(
                                     }
                                 }
                             }
-                        //
+
                         authdb.collection("users").document(auth.currentUser?.uid.toString())
                             .collection("My Books")
                             .document(myBooks[position].bookId)

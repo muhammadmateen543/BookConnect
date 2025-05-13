@@ -15,12 +15,6 @@ data class Book (var bookId: String,
                  var price: String?,
                  var exchangeBook: String?)
 
-data class User(
-    val userId: String = "",
-    val fullName: String = "",
-    val email: String = ""
-)
-
 data class Chat(
     val chatId: String = "",
     val participants: List<String>,

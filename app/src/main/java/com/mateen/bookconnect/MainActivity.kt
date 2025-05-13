@@ -150,46 +150,59 @@ class MainActivity : AppCompatActivity() {
         setSideNavigation()
 
         if (savedInstanceState == null) {
+            sideNavigation.isEnabled=false
+            bottomNavigation.isEnabled=false
             supportFragmentManager.beginTransaction()
                 .replace(R.id.fm_main_activity, HomeFragment(), "HomeFragment")
                 .commit()
             currentFragmentTag= "HomeFragment"
+            sideNavigation.isEnabled=true
+            bottomNavigation.isEnabled=true
         }
 
         bottomNavigation.setOnItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.home_navigation -> {
+                    bottomNavigation.isEnabled=false
                     supportFragmentManager.beginTransaction()
                         .replace(R.id.fm_main_activity, HomeFragment(), "HomeFragment")
                         .commit()
                     currentFragmentTag = "HomeFragment"
+                    bottomNavigation.isEnabled=true
                 }
                 R.id.chat_navigation -> {
+                    bottomNavigation.isEnabled=false
                     supportFragmentManager.beginTransaction()
                         .replace(R.id.fm_main_activity, ChatFragment(), "ChatFragment")
                         .commit()
                     currentFragmentTag = "ChatFragment"
+                    bottomNavigation.isEnabled=true
                 }
                 R.id.sell_navigation -> {
+                    bottomNavigation.isEnabled=false
                     if (currentFragmentTag != "SellFragment") {
                         supportFragmentManager.beginTransaction()
                             .replace(R.id.fm_main_activity, SellFragment(), "SellFragment")
                             .commit()
                         currentFragmentTag = "SellFragment"
                     }
+                    bottomNavigation.isEnabled=true
                 }
                 R.id.mybooks_navigation -> {
+                    bottomNavigation.isEnabled=false
                         supportFragmentManager.beginTransaction()
                             .replace(R.id.fm_main_activity, MyBooksFragment(), "MyBooksFragment")
                             .commit()
                         currentFragmentTag = "MyBooksFragment"
+                    bottomNavigation.isEnabled=true
                 }
                 R.id.myoffers_navigation -> {
-                    Toast.makeText(this, "My Offers is Pressed", Toast.LENGTH_SHORT).show()
+                    bottomNavigation.isEnabled=false
                         supportFragmentManager.beginTransaction()
                             .replace(R.id.fm_main_activity, MyOffersFragment(), "MyOffersFragment")
                             .commit()
                         currentFragmentTag = "MyOffersFragment"
+                    bottomNavigation.isEnabled=true
                 }
             }
             true
@@ -227,6 +240,7 @@ class MainActivity : AppCompatActivity() {
         sideNavigation.setNavigationItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.profile_navigation -> {
+                    sideNavigation.isEnabled=false
                     val options = arrayOf("Edit Profile Picture", "Edit Name", "Edit Location")
                     val ad = android.app.AlertDialog.Builder(this)
                     ad.setTitle("Select one option")
@@ -292,16 +306,23 @@ class MainActivity : AppCompatActivity() {
                     }
                     var adcreate = ad.create()
                     adcreate.show()
-                    Toast.makeText(this, "Edit profile is clicked", Toast.LENGTH_SHORT).show()
+                    sideNavigation.isEnabled=true
                     true
                 }
                 R.id.notification_navigation -> {
+                    sideNavigation.isEnabled=false
                     supportFragmentManager.beginTransaction()
                         .replace(R.id.fm_main_activity, NotificationFragment(), "NotificationFragment")
                         .commit()
+                    sideNavigation.isEnabled=true
                     true
                 }
                 R.id.logout_navigation -> {
+                    sideNavigation.isEnabled=false
+                    FirebaseAuth.getInstance().signOut()
+                    startActivity(Intent(this, LogIn::class.java))
+                    finish()
+                    sideNavigation.isEnabled=true
                     true
                 }
                 else -> false

@@ -8,13 +8,14 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.ListView
 import android.widget.Toast
-import androidx.core.widget.addTextChangedListener
 import android.app.AlertDialog
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import android.text.Editable
 import android.widget.EditText
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import androidx.core.widget.addTextChangedListener
 
 class HomeFragment : Fragment() {
     private lateinit var auth: FirebaseAuth
@@ -64,13 +65,11 @@ class HomeFragment : Fragment() {
             showSortOptions()
         }
 
-        etsearch.addTextChangedListener { text ->
-            val query = text.toString().trim()
-
+        etsearch.addTextChangedListener { editable: Editable? ->
+            val query = editable.toString().trim()
             val filteredBooks = currentBooksList.filter { book ->
                 book.name.contains(query, ignoreCase = true)
             }
-
             val adapter = CustomAdapterForBook(
                 requireContext(),
                 requireActivity().supportFragmentManager,

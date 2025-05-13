@@ -18,8 +18,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.text.Editable
 import android.util.Base64
 import android.widget.ImageView
+import androidx.core.widget.addTextChangedListener
 import androidx.lifecycle.lifecycleScope
 import com.google.firebase.firestore.ListenerRegistration
 
@@ -27,7 +29,6 @@ class ChatFragment() : Fragment() {
     private lateinit var auth: FirebaseAuth
     private lateinit var authdb: FirebaseFirestore
     private lateinit var editTextSearch: EditText
-    private lateinit var buttonSearch: ImageView
     private lateinit var listViewChats: ListView
 
     private val chats = mutableListOf<Chat>()
@@ -44,7 +45,6 @@ class ChatFragment() : Fragment() {
         auth = FirebaseAuth.getInstance()
         authdb = FirebaseFirestore.getInstance()
         editTextSearch = view.findViewById(R.id.et_search_chat)
-        buttonSearch = view.findViewById(R.id.bt_search_chat)
         listViewChats = view.findViewById(R.id.lv_chat)
         return view
     }
@@ -68,6 +68,30 @@ class ChatFragment() : Fragment() {
             adapter.updateChats(updatedChats)
             listViewChats.invalidateViews()
             Log.d("ChatFragment", "Updated ListView with ${updatedChats.size} chats")
+        }
+
+        editTextSearch.addTextChangedListener { editable: Editable? ->
+            val query = editable.toString().trim()
+            val filteredChats = chats.filter { chat ->
+                chat.otherUserName.contains(query, ignoreCase = true)
+            }
+            val adapter = CustomAdapterForChat(
+                requireContext(),
+                requireActivity().supportFragmentManager,
+                filteredChats.toMutableList()
+            )
+            listViewChats.adapter = adapter
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        displayAllChats { updatedChats ->
+            Log.d("ChatFragment OnResume", "onChatsLoaded received ${updatedChats.size} chats")
+            adapter.updateChats(updatedChats)
+            adapter.notifyDataSetChanged()
+            listViewChats.invalidateViews()
+            Log.d("ChatFragment OnResume", "Updated ListView with ${updatedChats.size} chats")
         }
     }
 

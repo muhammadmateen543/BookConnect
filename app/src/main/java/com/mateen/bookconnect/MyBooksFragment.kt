@@ -32,7 +32,7 @@ class MyBooksFragment : Fragment() {
     ): View? {
         val view = inflater.inflate(R.layout.fragment_my_books, container, false)
         recyclerView = view.findViewById(R.id.rc_myBooks)
-        etsearch=view.findViewById(R.id.etsearch)
+        etsearch=view.findViewById(R.id.et_myBooks)
         myBooks = mutableListOf()
         myBooksAdapter = myBooksAdapter(requireContext(), myBooks)
         recyclerView.layoutManager = LinearLayoutManager(requireContext())

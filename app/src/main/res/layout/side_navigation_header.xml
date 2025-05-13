@@ -12,6 +12,7 @@
         android:id="@+id/iv_profile_pic"
         android:layout_width="95dp"
         android:layout_height="0dp"
+        android:layout_gravity="center"
         android:layout_weight="3"
         android:layout_margin="10dp"
         android:src="@drawable/profile_icon"/>
@@ -44,6 +45,8 @@
         android:text="Email"
         android:gravity="center_vertical"
         android:layout_margin="10dp"
+        android:maxLines="1"
+        android:autoSizeTextType="uniform"
         android:textSize="20sp"/>
     <View
         android:layout_width="match_parent"

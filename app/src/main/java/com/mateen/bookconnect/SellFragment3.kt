@@ -98,7 +98,6 @@ class SellFragment3 : Fragment() {
                     dealboth.visibility=View.GONE
                 }
                 else if(selectedItem==modes[1])
-
                 {
                     dealsell.visibility=View.GONE
                     dealexchange.visibility=View.VISIBLE
@@ -111,7 +110,6 @@ class SellFragment3 : Fragment() {
                     dealboth.visibility=View.VISIBLE
                 }
             }
-
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
         btsubmit.setOnClickListener({

@@ -31,6 +31,8 @@ class CustomAdapterForBook(var context: Context, val fragmentManager: FragmentMa
         var title=data.name.toString()
         var description=data.description.toString()
         var dealmode = data.dealMode.toString()
+        var price = data.price.toString()
+        var exchangeBook = data.exchangeBook.toString()
         if(images[0].isEmpty())
         {
             ivImage.setImageResource(R.drawable.noimageicon)
@@ -53,6 +55,9 @@ class CustomAdapterForBook(var context: Context, val fragmentManager: FragmentMa
             bundle.putString("isbn", data.isbn.toString())
             bundle.putString("condition", data.condition.toString())
             bundle.putStringArrayList("images", images)
+            bundle.putString("dealMode", dealmode.toString())
+            bundle.putString("price", price)
+            bundle.putString("exchangeBook", exchangeBook)
             var bookDetailFragment= BookDetailFragment()
             bookDetailFragment.arguments=bundle
             fragmentManager.beginTransaction().replace(R.id.buyFragment, bookDetailFragment)
