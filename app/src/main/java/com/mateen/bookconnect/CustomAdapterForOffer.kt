@@ -1,14 +1,20 @@
 package com.mateen.bookconnect
 
 import android.content.Context
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
+import android.widget.EditText
 import android.widget.RelativeLayout
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.FragmentManager
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 
 class CustomerAdapterForOffer(var context: Context, val fragmentManager: FragmentManager, var mdata: MutableList<offer>): BaseAdapter() {
@@ -55,34 +61,41 @@ class CustomerAdapterForOffer(var context: Context, val fragmentManager: Fragmen
 
         cancelbtn.setOnClickListener {
             cancelbtn.isEnabled = false
-            authdb.collection("users")
-                .document(offer.ownerId)
-                .collection("My Books")
-                .document(offer.bookId)
-                .get()
-                .addOnSuccessListener { result ->
-                    val bidsList = (result.get("Bids") as? List<Map<String, Any>>)?.toMutableList()
-                    if (bidsList != null) {
-                        val iterator = bidsList.iterator()
-                        while (iterator.hasNext()) {
-                            val bid = iterator.next()
-                            if (bid["bidderId"].toString() == auth.currentUser?.uid) {
-                                iterator.remove()
+            val builder = AlertDialog.Builder(context)
+            builder.setTitle("Are you sure you want to remove this bid?")
+            val input = EditText(context)
+            input.inputType = InputType.TYPE_CLASS_TEXT
+            builder.setView(input)
+            builder.setPositiveButton("Confirm") { _, _ ->
+                authdb.collection("users")
+                    .document(offer.ownerId)
+                    .collection("My Books")
+                    .document(offer.bookId)
+                    .get()
+                    .addOnSuccessListener { result ->
+                        val bidsList = (result.get("Bids") as? List<Map<String, Any>>)?.toMutableList()
+                        if (bidsList != null) {
+                            val iterator = bidsList.iterator()
+                            while (iterator.hasNext()) {
+                                val bid = iterator.next()
+                                if (bid["bidderId"].toString() == auth.currentUser?.uid) {
+                                    iterator.remove()
+                                }
                             }
+                            authdb.collection("users")
+                                .document(offer.ownerId)
+                                .collection("My Books")
+                                .document(offer.bookId)
+                                .update("Bids", bidsList)
+                                .addOnSuccessListener {
+                                    mdata.removeAt(position)
+                                    notifyDataSetChanged()
+                                }
                         }
-                        authdb.collection("users")
-                            .document(offer.ownerId)
-                            .collection("My Books")
-                            .document(offer.bookId)
-                            .update("Bids", bidsList)
-                            .addOnSuccessListener {
-                                mdata.removeAt(position)
-                                notifyDataSetChanged()
-                            }
                     }
-                }
-                .addOnFailureListener {
-                }
+            }
+            builder.setNegativeButton("Cancel", null)
+            builder.show()
             cancelbtn.isEnabled = true
         }
 

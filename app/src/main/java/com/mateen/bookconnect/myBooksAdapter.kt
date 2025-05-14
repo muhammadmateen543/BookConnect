@@ -28,17 +28,16 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
+import androidx.fragment.app.FragmentManager
 
 class myBooksAdapter(
     var context: Context,
+    val fragmentManager: FragmentManager,
     var myBooks: MutableList<Book>
 ) : RecyclerView.Adapter<myBooksAdapter.myBooksViewHolder>() {
     private lateinit var auth: FirebaseAuth
     private lateinit var authdb: FirebaseFirestore
+    private lateinit var view: View
     var selectedIndex=-1;
     inner class myBooksViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val iv_myBook_picture: ImageView = view.findViewById(R.id.iv_myBook_picture)
@@ -52,7 +51,7 @@ class myBooksAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): myBooksViewHolder {
         auth= FirebaseAuth.getInstance()
         authdb= FirebaseFirestore.getInstance()
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.single_my_book, parent, false)
+        view = LayoutInflater.from(parent.context).inflate(R.layout.single_my_book, parent, false)
         return myBooksViewHolder(view)
     }
 
@@ -112,7 +111,34 @@ class myBooksAdapter(
         holder.btnshowbids_myBooks.setOnClickListener {
             seeOrApplyActionOnBids(position)
         }
-
+//
+        var data = myBooks[position]
+        var images=data.images
+        var title=data.name.toString()
+        var description=data.description.toString()
+        var dealmode = data.dealMode.toString()
+        var price = data.price.toString()
+        var exchangeBook = data.exchangeBook.toString()
+        view.setOnClickListener {
+            var bundle= Bundle()
+            bundle.putString("bookId", data.bookId.toString())
+            bundle.putString("title", title)
+            bundle.putString("description", description)
+            bundle.putString("author" , data.author.toString())
+            bundle.putString("publisher", data.publisher.toString())
+            bundle.putString("edition", data.edition.toString())
+            bundle.putString("isbn", data.isbn.toString())
+            bundle.putString("condition", data.condition.toString())
+            bundle.putStringArrayList("images", images)
+            bundle.putString("dealMode", dealmode.toString())
+            bundle.putString("price", price)
+            bundle.putString("exchangeBook", exchangeBook)
+            var bookDetailFragment= BookDetailFragment()
+            bookDetailFragment.arguments=bundle
+            fragmentManager.beginTransaction().replace(R.id.myFragment, bookDetailFragment)
+                .addToBackStack(null).commit()
+        }
+        //
     }
 
     override fun getItemCount() = myBooks.size

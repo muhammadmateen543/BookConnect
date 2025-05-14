@@ -6,36 +6,32 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
-import android.widget.ImageButton
 import android.widget.ListView
+import android.widget.ProgressBar
 import android.widget.Toast
+import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.text.Editable
 import android.util.Base64
-import android.widget.ImageView
-import androidx.core.widget.addTextChangedListener
-import androidx.lifecycle.lifecycleScope
-import com.google.firebase.firestore.ListenerRegistration
 
-class ChatFragment() : Fragment() {
+class ChatFragment : Fragment() {
     private lateinit var auth: FirebaseAuth
     private lateinit var authdb: FirebaseFirestore
     private lateinit var editTextSearch: EditText
     private lateinit var listViewChats: ListView
-
+    private lateinit var progressBar: ProgressBar
     private val chats = mutableListOf<Chat>()
-
     private var chatsListener: ListenerRegistration? = null
-
     private lateinit var adapter: CustomAdapterForChat
+    private var isLoading: Boolean = false
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -46,6 +42,7 @@ class ChatFragment() : Fragment() {
         authdb = FirebaseFirestore.getInstance()
         editTextSearch = view.findViewById(R.id.et_search_chat)
         listViewChats = view.findViewById(R.id.lv_chat)
+        progressBar = view.findViewById(R.id.pb_chat)
         return view
     }
 
@@ -58,51 +55,73 @@ class ChatFragment() : Fragment() {
         if (currentUserId == null) {
             Toast.makeText(requireContext(), "User not authenticated", Toast.LENGTH_SHORT).show()
             Log.e("ChatFragment", "No authenticated user found")
+            showLoading(false)
             return
         }
 
         Log.d("ChatFragment", "Starting to load chats for user: $currentUserId")
-        // Set up real-time listener for chats
+        showLoading(true)
         displayAllChats { updatedChats ->
-            Log.d("ChatFragment", "onChatsLoaded received ${updatedChats.size} chats")
-            adapter.updateChats(updatedChats)
-            listViewChats.invalidateViews()
-            Log.d("ChatFragment", "Updated ListView with ${updatedChats.size} chats")
+            if (isAdded && view != null) {
+                Log.d("ChatFragment", "onChatsLoaded received ${updatedChats.size} chats")
+                adapter.updateChats(updatedChats)
+                adapter.notifyDataSetChanged()
+                Log.d("ChatFragment", "Updated ListView with ${updatedChats.size} chats")
+            }
+            showLoading(false)
         }
 
-        editTextSearch.addTextChangedListener { editable: Editable? ->
+        editTextSearch.addTextChangedListener { editable ->
             val query = editable.toString().trim()
-            val filteredChats = chats.filter { chat ->
-                chat.otherUserName.contains(query, ignoreCase = true)
+            if (isAdded && view != null) {
+                val filteredChats = chats.filter { chat ->
+                    chat.otherUserName.contains(query, ignoreCase = true)
+                }
+                val adapter = CustomAdapterForChat(
+                    requireContext(),
+                    requireActivity().supportFragmentManager,
+                    filteredChats.toMutableList()
+                )
+                listViewChats.adapter = adapter
             }
-            val adapter = CustomAdapterForChat(
-                requireContext(),
-                requireActivity().supportFragmentManager,
-                filteredChats.toMutableList()
-            )
-            listViewChats.adapter = adapter
         }
     }
 
     override fun onResume() {
         super.onResume()
+        showLoading(true)
         displayAllChats { updatedChats ->
-            Log.d("ChatFragment OnResume", "onChatsLoaded received ${updatedChats.size} chats")
-            adapter.updateChats(updatedChats)
-            adapter.notifyDataSetChanged()
-            listViewChats.invalidateViews()
-            Log.d("ChatFragment OnResume", "Updated ListView with ${updatedChats.size} chats")
+            if (isAdded && view != null) {
+                Log.d("ChatFragment OnResume", "onChatsLoaded received ${updatedChats.size} chats")
+                adapter.updateChats(updatedChats)
+                adapter.notifyDataSetChanged()
+                Log.d("ChatFragment OnResume", "Updated ListView with ${updatedChats.size} chats")
+            }
+            showLoading(false)
         }
     }
 
+    private fun showLoading(isLoading: Boolean) {
+        this.isLoading = isLoading
+        progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+        (requireActivity() as? MainActivity)?.onFragmentLoadingStateChanged(isLoading)
+    }
+
+    fun isLoading(): Boolean = isLoading
+
     private fun displayAllChats(onChatsLoaded: (List<Chat>) -> Unit) {
         val currentUserId = auth.currentUser?.uid ?: return
+        chatsListener?.remove() // Remove existing listener to avoid duplicates
         chatsListener = authdb.collection("chats")
             .whereArrayContains("participants", currentUserId)
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
                     Toast.makeText(requireContext(), "Failed to load chats: ${e.message}", Toast.LENGTH_SHORT).show()
                     Log.e("ChatFragment", "Snapshot listener error: ${e.message}", e)
+                    lifecycleScope.launch(Dispatchers.Main) {
+                        onChatsLoaded(emptyList())
+                        showLoading(false)
+                    }
                     return@addSnapshotListener
                 }
 
@@ -110,13 +129,8 @@ class ChatFragment() : Fragment() {
                     Log.d("ChatFragment", "No chats found for user: $currentUserId")
                     lifecycleScope.launch(Dispatchers.Main) {
                         onChatsLoaded(emptyList())
+                        showLoading(false)
                     }
-                    return@addSnapshotListener
-                }
-
-                // Ignore local writes to prevent duplicate updates
-                if (snapshot.metadata.hasPendingWrites()) {
-                    Log.d("ChatFragment", "Ignoring snapshot with pending writes")
                     return@addSnapshotListener
                 }
 
@@ -131,15 +145,13 @@ class ChatFragment() : Fragment() {
                             Log.w("ChatFragment", "Invalid participants for chat: ${doc.id}")
                             continue
                         }
-                        if (currentUserId in participants
-                        ) {
+                        if (currentUserId in participants) {
                             val otherUid = participants.firstOrNull { it != currentUserId }
                             if (otherUid == null) {
                                 Log.w("ChatFragment", "No other participant found for chat: ${doc.id}")
                                 continue
                             }
 
-                            // Fetch username
                             val userSnapshot = try {
                                 authdb.collection("users")
                                     .document(otherUid)
@@ -151,7 +163,6 @@ class ChatFragment() : Fragment() {
                             }
                             val otherUserName = userSnapshot?.getString("Full Name") ?: "Unknown User"
 
-                            // Fetch profile picture
                             val picSnapshot = try {
                                 authdb.collection("Base64Images")
                                     .document(otherUid)
@@ -192,7 +203,7 @@ class ChatFragment() : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        chatsListener?.remove() // Clean up listener
+        chatsListener?.remove()
         Log.d("ChatFragment", "Removed snapshot listener")
     }
 

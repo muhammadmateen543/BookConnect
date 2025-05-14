@@ -22,12 +22,9 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withContext
 
 class ChatDetailFragment : Fragment() {
     private lateinit var auth: FirebaseAuth
@@ -45,7 +42,7 @@ class ChatDetailFragment : Fragment() {
     private lateinit var buttonSend: ImageButton
 
     private var messages = mutableListOf<Message>()
-    private var currentUserId : String? = ""
+    private var currentUserId: String? = ""
 
     private var messagesListener: ListenerRegistration? = null
 
@@ -105,7 +102,6 @@ class ChatDetailFragment : Fragment() {
         })
 
         Log.d("ChatDetailFragment", "Starting to load messages for chat: $chatId")
-        // Set up real-time listener for messages
         loadAllMessages { updatedMessages ->
             Log.d("ChatDetailFragment", "onMessagesLoaded received ${updatedMessages.size} messages")
             adapter.updateMessages(updatedMessages)
@@ -171,7 +167,6 @@ class ChatDetailFragment : Fragment() {
                     return@addSnapshotListener
                 }
 
-                // Ignore local writes to prevent duplicate updates
                 if (snapshot.metadata.hasPendingWrites()) {
                     Log.d("ChatDetailFragment", "Ignoring snapshot with pending writes")
                     return@addSnapshotListener
@@ -209,7 +204,7 @@ class ChatDetailFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        messagesListener?.remove() // Clean up listener
+        messagesListener?.remove()
         Log.d("ChatDetailFragment", "Removed snapshot listener")
     }
 }

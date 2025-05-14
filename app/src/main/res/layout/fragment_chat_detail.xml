@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -11,39 +12,49 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="0.08"
-        android:background="@color/navyblue"
+        android:background="#042d94"
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <ImageButton
-            android:id="@+id/buttonBack"
+        <RelativeLayout
             android:layout_width="50dp"
-            android:layout_height="match_parent"
+            android:layout_height="match_parent">
+        <ImageButton
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:id="@+id/buttonBack"
             android:src="@drawable/back_arrow_icon"
             android:scaleType="centerInside"
-            android:background="@color/navyblue"
+            android:background="#042d94"
             android:layout_marginEnd="10dp"
-            android:padding="8dp"
-            android:contentDescription="Back" />
-
-        <ImageView
-            android:id="@+id/iv_profile_chat"
+            android:layout_centerInParent="true"
+            android:padding="4dp"
+            android:contentDescription="Back"
+            app:tint="@color/white" />
+        </RelativeLayout>
+        <RelativeLayout
             android:layout_width="50dp"
             android:layout_height="match_parent"
+            android:orientation="vertical">
+        <ImageView
+            android:id="@+id/iv_profile_chat"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:src="@drawable/profile_icon"
             android:layout_marginEnd="10dp"
             android:padding="2dp"
             android:scaleType="centerCrop"
             android:background="@drawable/circle1"
+            android:layout_centerInParent="true"
             android:clipToOutline="true"/>
-
+        </RelativeLayout>
         <TextView
             android:id="@+id/textViewChatName"
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
             android:textColor="@color/white"
-            android:textSize="25sp"
+            android:textSize="18sp"
             android:text="UserName"
             android:paddingStart="5dp"/>
 
@@ -65,8 +76,8 @@
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="match_parent"
-            android:background="@drawable/searchbox"
-            android:paddingHorizontal="5dp"
+            android:background="@color/white"
+            android:paddingHorizontal="7dp"
             android:gravity="center_vertical"
             android:hint="Type a message" />
 

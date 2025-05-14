@@ -6,11 +6,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.ProgressBar
+import androidx.core.widget.addTextChangedListener
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import androidx.core.widget.addTextChangedListener
 
 class MyBooksFragment : Fragment() {
     private lateinit var auth: FirebaseAuth
@@ -19,6 +20,8 @@ class MyBooksFragment : Fragment() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var myBooksAdapter: myBooksAdapter
     private lateinit var etsearch: EditText
+    private lateinit var progressBar: ProgressBar
+    private var isLoading: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,12 +35,14 @@ class MyBooksFragment : Fragment() {
     ): View? {
         val view = inflater.inflate(R.layout.fragment_my_books, container, false)
         recyclerView = view.findViewById(R.id.rc_myBooks)
-        etsearch=view.findViewById(R.id.et_myBooks)
+        etsearch = view.findViewById(R.id.et_myBooks)
+        progressBar = view.findViewById(R.id.pb_myBooks)
         myBooks = mutableListOf()
-        myBooksAdapter = myBooksAdapter(requireContext(), myBooks)
+        myBooksAdapter = myBooksAdapter(requireContext(),requireActivity().supportFragmentManager, myBooks)
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
         recyclerView.adapter = myBooksAdapter
 
+        showLoading(true)
         fetchBooks()
         return view
     }
@@ -46,16 +51,24 @@ class MyBooksFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         etsearch.addTextChangedListener { text ->
             val query = text.toString().trim()
-
-            val filteredBooks = myBooks.filter { book ->
-                book.name.contains(query, ignoreCase = true)
-            } as MutableList
-
-            myBooksAdapter = myBooksAdapter(requireContext(), filteredBooks)
-            recyclerView.layoutManager = LinearLayoutManager(requireContext())
-            recyclerView.adapter = myBooksAdapter
+            if (isAdded && view != null) {
+                val filteredBooks = myBooks.filter { book ->
+                    book.name.contains(query, ignoreCase = true)
+                } as MutableList
+                myBooksAdapter = myBooksAdapter(requireContext(),requireActivity().supportFragmentManager, filteredBooks)
+                recyclerView.layoutManager = LinearLayoutManager(requireContext())
+                recyclerView.adapter = myBooksAdapter
+            }
         }
     }
+
+    private fun showLoading(isLoading: Boolean) {
+        this.isLoading = isLoading
+        progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+        (requireActivity() as? MainActivity)?.onFragmentLoadingStateChanged(isLoading)
+    }
+
+    fun isLoading(): Boolean = isLoading
 
     private fun fetchBooks() {
         val booksCollection = authdb
@@ -65,6 +78,12 @@ class MyBooksFragment : Fragment() {
 
         booksCollection.get().addOnSuccessListener { result ->
             myBooks.clear()
+            var pendingImages = result.size()
+
+            if (result.isEmpty) {
+                showLoading(false)
+                return@addOnSuccessListener
+            }
 
             for (doc in result) {
                 val bookid = doc.id
@@ -92,42 +111,55 @@ class MyBooksFragment : Fragment() {
 
                 imagesCollectionRef.get().addOnSuccessListener { imagesResult ->
                     val imagesList = imagesResult.mapNotNull { it.getString("base64") }
-
-                    val newBook = Book(
-                        bookid,
-                        ArrayList(imagesList),
-                        name,
-                        description,
-                        condition,
-                        publisher,
-                        author,
-                        edition,
-                        isbn,
-                        mode,
-                        sellPrice,
-                        exchangeBook
-                    )
-                    myBooks.add(newBook)
-                    myBooksAdapter.notifyItemInserted(myBooks.size - 1)
+                    if (isAdded && view != null) {
+                        val newBook = Book(
+                            bookid,
+                            ArrayList(imagesList),
+                            name,
+                            description,
+                            condition,
+                            publisher,
+                            author,
+                            edition,
+                            isbn,
+                            mode,
+                            sellPrice,
+                            exchangeBook
+                        )
+                        myBooks.add(newBook)
+                        myBooksAdapter.notifyItemInserted(myBooks.size - 1)
+                    }
+                    pendingImages--
+                    if (pendingImages == 0) {
+                        showLoading(false)
+                    }
                 }.addOnFailureListener {
-                    val newBook = Book(
-                        bookid,
-                        arrayListOf(),
-                        name,
-                        description,
-                        condition,
-                        publisher,
-                        author,
-                        edition,
-                        isbn,
-                        mode,
-                        sellPrice,
-                        exchangeBook
-                    )
-                    myBooks.add(newBook)
-                    myBooksAdapter.notifyItemInserted(myBooks.size - 1)
+                    if (isAdded && view != null) {
+                        val newBook = Book(
+                            bookid,
+                            arrayListOf(),
+                            name,
+                            description,
+                            condition,
+                            publisher,
+                            author,
+                            edition,
+                            isbn,
+                            mode,
+                            sellPrice,
+                            exchangeBook
+                        )
+                        myBooks.add(newBook)
+                        myBooksAdapter.notifyItemInserted(myBooks.size - 1)
+                    }
+                    pendingImages--
+                    if (pendingImages == 0) {
+                        showLoading(false)
+                    }
                 }
             }
+        }.addOnFailureListener {
+            showLoading(false)
         }
     }
 }

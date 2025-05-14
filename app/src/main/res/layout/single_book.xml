@@ -74,6 +74,7 @@
                 android:layout_weight="0.3"
                 android:text="MODE:"
                 android:textColor="@color/black"
+                android:textStyle="italic"
                 android:gravity="center_vertical"/>
         </LinearLayout>
 

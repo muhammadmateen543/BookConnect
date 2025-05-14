@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.ListView
+import android.widget.ProgressBar
 import android.widget.Toast
 import android.app.AlertDialog
 import android.graphics.Color
@@ -23,11 +24,13 @@ class HomeFragment : Fragment() {
     private lateinit var sort: ImageView
     private lateinit var list: ListView
     private lateinit var etsearch: EditText
+    private lateinit var progressBar: ProgressBar
     var currentBooksList: List<Book> = listOf()
+    private var isLoading: Boolean = false // Track loading state
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
     }
-
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -40,6 +43,7 @@ class HomeFragment : Fragment() {
         list = view.findViewById(R.id.lv1)
         sort = view.findViewById(R.id.sort)
         etsearch = view.findViewById(R.id.etsearch)
+        progressBar = view.findViewById(R.id.pb_home)
         return view
     }
 
@@ -47,18 +51,21 @@ class HomeFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         etsearch.isEnabled = false
+        showLoading(true) // Show ProgressBar and set loading state
 
         displayAllBooksForSale { books ->
             currentBooksList = books
 
-            val adapter = CustomAdapterForBook(
-                requireContext(),
-                requireActivity().supportFragmentManager,
-                books.toMutableList()
-            )
-            list.adapter = adapter
-
-            etsearch.isEnabled = true
+            if (isAdded && view != null) { // Ensure fragment is still valid
+                val adapter = CustomAdapterForBook(
+                    requireContext(),
+                    requireActivity().supportFragmentManager,
+                    books.toMutableList()
+                )
+                list.adapter = adapter
+                etsearch.isEnabled = true
+                showLoading(false) // Hide ProgressBar and clear loading state
+            }
         }
 
         sort.setOnClickListener {
@@ -70,14 +77,25 @@ class HomeFragment : Fragment() {
             val filteredBooks = currentBooksList.filter { book ->
                 book.name.contains(query, ignoreCase = true)
             }
-            val adapter = CustomAdapterForBook(
-                requireContext(),
-                requireActivity().supportFragmentManager,
-                filteredBooks.toMutableList()
-            )
-            list.adapter = adapter
+            if (isAdded && view != null) {
+                val adapter = CustomAdapterForBook(
+                    requireContext(),
+                    requireActivity().supportFragmentManager,
+                    filteredBooks.toMutableList()
+                )
+                list.adapter = adapter
+            }
         }
     }
+
+    private fun showLoading(isLoading: Boolean) {
+        this.isLoading = isLoading
+        progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+        // Notify MainActivity of loading state
+        (requireActivity() as? MainActivity)?.onFragmentLoadingStateChanged(isLoading)
+    }
+
+    fun isLoading(): Boolean = isLoading // Expose loading state to MainActivity
 
     private fun showSortOptions() {
         val sortOptions = arrayOf("Sort by Name", "Filter by (For Sale)", "Filter by (For Exchange)", "Filter by (For Both)")
@@ -86,14 +104,18 @@ class HomeFragment : Fragment() {
         builder.setItems(sortOptions) { dialog, item ->
             val selectedOption = sortOptions[item]
             sort.tag = selectedOption
+            showLoading(true) // Show ProgressBar for sorting
             displayAllBooksSortby(selectedOption) { books ->
-                currentBooksList=books
-                val adapter = CustomAdapterForBook(
-                    requireContext(),
-                    requireActivity().supportFragmentManager,
-                    books.toMutableList()
-                )
-                list.adapter = adapter
+                currentBooksList = books
+                if (isAdded && view != null) {
+                    val adapter = CustomAdapterForBook(
+                        requireContext(),
+                        requireActivity().supportFragmentManager,
+                        books.toMutableList()
+                    )
+                    list.adapter = adapter
+                    showLoading(false) // Hide ProgressBar after sorting
+                }
             }
         }
         builder.setNegativeButton("Cancel") { dialog, _ ->
@@ -110,6 +132,7 @@ class HomeFragment : Fragment() {
         authdb.collection("TradeBooks").get().addOnSuccessListener { result ->
             if (result.isEmpty) {
                 onBooksLoaded(books)
+                showLoading(false)
                 return@addOnSuccessListener
             }
 
@@ -162,15 +185,20 @@ class HomeFragment : Fragment() {
                         processedCount++
                         if (processedCount == result.size()) {
                             onBooksLoaded(books)
+                            showLoading(false)
                         }
                     }
                     .addOnFailureListener {
                         processedCount++
                         if (processedCount == result.size()) {
                             onBooksLoaded(books)
+                            showLoading(false)
                         }
                     }
             }
+        }.addOnFailureListener {
+            onBooksLoaded(books)
+            showLoading(false)
         }
     }
 
@@ -180,6 +208,7 @@ class HomeFragment : Fragment() {
         authdb.collection("TradeBooks").get().addOnSuccessListener { result ->
             if (result.isEmpty) {
                 onBooksLoaded(books)
+                showLoading(false)
                 return@addOnSuccessListener
             }
 
@@ -188,7 +217,7 @@ class HomeFragment : Fragment() {
                 val data = doc.data
                 val bookId = data["bookId"].toString()
                 val author = data["Author"].toString()
-                val condition = data["Condition"].toString()
+                var condition = data["Condition"].toString()
                 val dealMode = data["Deal Mode"].toString()
                 val description = data["Description"].toString()
                 val edition = data["Edition"].toString()
@@ -239,6 +268,7 @@ class HomeFragment : Fragment() {
                                 else -> books
                             }
                             onBooksLoaded(finalBooks)
+                            showLoading(false)
                         }
                     }
                     .addOnFailureListener {
@@ -252,9 +282,13 @@ class HomeFragment : Fragment() {
                                 else -> books
                             }
                             onBooksLoaded(finalBooks)
+                            showLoading(false)
                         }
                     }
             }
+        }.addOnFailureListener {
+            onBooksLoaded(books)
+            showLoading(false)
         }
     }
 }

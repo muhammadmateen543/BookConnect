@@ -43,7 +43,6 @@ class CustomAdapterForChat(
         val otherUid = data.participants.first { it != currentUid }
         val chatId = data.chatId
 
-        // Use preloaded data
         chatProfilePic.setImageBitmap(data.otherUserProfileImage ?: Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888))
         textViewChatName.text = data.otherUserName.takeIf { it.isNotEmpty() } ?: "Unknown User"
         textViewLastMessage.text = data.lastMessage
@@ -68,10 +67,29 @@ class CustomAdapterForChat(
 
     fun updateChats(newChats: List<Chat>) {
         Log.d("CustomAdapterForChat", "Updating adapter with ${newChats.size} chats")
-        mchat.clear()
-        mchat.addAll(newChats)
-        notifyDataSetChanged()
-        Log.d("CustomAdapterForChat", "Adapter updated, new count: ${mchat.size}")
+        val oldChatsMap = mchat.associateBy { it.chatId }.toMutableMap()
+        var hasChanges = false
+
+        for (newChat in newChats) {
+            val oldChat = oldChatsMap[newChat.chatId]
+            if (oldChat == null) {
+                mchat.add(newChat)
+                hasChanges = true
+            } else if (oldChat.lastMessage != newChat.lastMessage || oldChat.lastMessageTimestamp != newChat.lastMessageTimestamp) {
+                oldChatsMap[newChat.chatId] = newChat
+                hasChanges = true
+            }
+        }
+
+        if (hasChanges) {
+            mchat.clear()
+            mchat.addAll(oldChatsMap.values)
+            mchat.sortByDescending { it.lastMessageTimestamp }
+            notifyDataSetChanged()
+            Log.d("CustomAdapterForChat", "Adapter updated with changes, new count: ${mchat.size}")
+        } else {
+            Log.d("CustomAdapterForChat", "No changes detected, adapter not updated")
+        }
     }
 
     private fun formatTimestamp(timestamp: Long): String {

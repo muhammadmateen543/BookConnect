@@ -114,6 +114,38 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
                 android:gravity="center_vertical"
+                android:text="Location:" />
+
+            <TextView
+                android:id="@+id/location"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/textboxes"
+                android:minHeight="40dp"
+                android:gravity="center_vertical"
+                android:padding="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center_vertical"
+                android:text="Owner Name:" />
+
+            <TextView
+                android:id="@+id/ownername"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/textboxes"
+                android:minHeight="40dp"
+                android:gravity="center_vertical"
+                android:padding="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center_vertical"
                 android:text="Condition:" />
 
             <TextView

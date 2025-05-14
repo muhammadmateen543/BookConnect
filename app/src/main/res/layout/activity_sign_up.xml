@@ -108,15 +108,22 @@
                             android:layout_height="wrap_content"
                             android:text=" Note: Image > 1MB will get ignored."
                             android:textColor="@color/red"/>
-                        <ImageView
-                            android:id="@+id/iv_profile_pic"
+                        <RelativeLayout
                             android:layout_width="90dp"
                             android:layout_height="90dp"
+                            android:layout_alignParentEnd="true"
+                            android:background="@drawable/circle1"
+                            android:clipToOutline="true">
+                        <ImageView
+                            android:id="@+id/iv_profile_pic"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
                             android:clickable="true"
                             android:focusable="true"
                             android:background="@drawable/circle"
-                            android:layout_alignParentEnd="true"
+                            android:scaleType="centerCrop"
                             android:clipToOutline="true"/>
+                        </RelativeLayout>
                     </RelativeLayout>
                     <View
                         android:layout_width="0dp"
@@ -422,12 +429,11 @@
                         android:layout_weight="1"/>
                 </LinearLayout>
                 </LinearLayout>
-            </LinearLayout>
-
             <View
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="0.5"/>
+            </LinearLayout>
         </LinearLayout>
     <View
         android:layout_width="match_parent"

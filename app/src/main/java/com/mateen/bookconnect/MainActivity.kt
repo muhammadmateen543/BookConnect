@@ -9,17 +9,14 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
 import android.text.InputType
-import android.widget.FrameLayout
-import android.widget.ImageView
-import android.widget.Toast
 import android.util.Base64
 import android.util.Log
 import android.view.View
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
 import android.widget.EditText
-import android.widget.Spinner
+import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -44,13 +41,15 @@ class MainActivity : AppCompatActivity() {
 
     lateinit var headerView: View
     lateinit var ivProfilePic: ImageView
-    lateinit var tvName:TextView
-    lateinit var tvLocation:TextView
-    lateinit var tvEmail:TextView
+    lateinit var tvName: TextView
+    lateinit var tvLocation: TextView
+    lateinit var tvEmail: TextView
 
     private var currentFragmentTag: String = "HomeFragment"
+    private var isFragmentLoading: Boolean = false // Track current fragment loading state
+    private var pendingNavigationAction: (() -> Unit)? = null // Store pending navigation action
 
-    lateinit var currentUid:String
+    lateinit var currentUid: String
 
     fun isBase64UnderFirestoreLimit(base64String: String): Boolean {
         return base64String.toByteArray(Charsets.UTF_8).size < 1_048_576
@@ -93,14 +92,27 @@ class MainActivity : AppCompatActivity() {
             val bitmap = MediaStore.Images.Media.getBitmap(this.contentResolver, imageUri)
             bitmap?.let {
                 val base64Image = bitmapToBase64(bitmap)
-                if(isBase64UnderFirestoreLimit(bitmapToBase64(bitmap))) {
-                    authdb.collection("Base64Images").document(currentUid!!)
-                        .collection("ProfilePicture").document().update("base64", base64Image)
-                    Log.d("Base64", "Base64 is updated")
-                    btprofile.setImageBitmap(bitmap)
-                }
-                else{
-                    Toast.makeText(this, "Failed. Selected Image > 1 MB", Toast.LENGTH_LONG).show()
+                if (isCurrentFragmentLoading()) {
+                    Toast.makeText(this, "Please wait, loading data...", Toast.LENGTH_SHORT).show()
+                    pendingNavigationAction = {
+                        if (isBase64UnderFirestoreLimit(base64Image)) {
+                            authdb.collection("Base64Images").document(currentUid)
+                                .collection("ProfilePicture").document().update("base64", base64Image)
+                            Log.d("Base64", "Base64 is updated")
+                            btprofile.setImageBitmap(bitmap)
+                        } else {
+                            Toast.makeText(this, "Failed. Selected Image > 1 MB", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                } else {
+                    if (isBase64UnderFirestoreLimit(base64Image)) {
+                        authdb.collection("Base64Images").document(currentUid)
+                            .collection("ProfilePicture").document().update("base64", base64Image)
+                        Log.d("Base64", "Base64 is updated")
+                        btprofile.setImageBitmap(bitmap)
+                    } else {
+                        Toast.makeText(this, "Failed. Selected Image > 1 MB", Toast.LENGTH_LONG).show()
+                    }
                 }
             }
         }
@@ -112,14 +124,27 @@ class MainActivity : AppCompatActivity() {
                 val bitmap = result.data?.extras?.get("data") as? Bitmap
                 bitmap?.let {
                     val base64Image = bitmapToBase64(bitmap)
-                    if(isBase64UnderFirestoreLimit(base64Image)) {
-                        authdb.collection("Base64Images").document(currentUid!!)
-                            .collection("ProfilePicture").document().update("base64", base64Image)
-                        Log.d("Base64", "Base64 is updated")
-                        btprofile.setImageBitmap(bitmap)
-                    }
-                    else{
-                        Toast.makeText(this, "Failed. Captured Image > 1 MB", Toast.LENGTH_LONG).show()
+                    if (isCurrentFragmentLoading()) {
+                        Toast.makeText(this, "Please wait, loading data...", Toast.LENGTH_SHORT).show()
+                        pendingNavigationAction = {
+                            if (isBase64UnderFirestoreLimit(base64Image)) {
+                                authdb.collection("Base64Images").document(currentUid)
+                                    .collection("ProfilePicture").document().update("base64", base64Image)
+                                Log.d("Base64", "Base64 is updated")
+                                btprofile.setImageBitmap(bitmap)
+                            } else {
+                                Toast.makeText(this, "Failed. Captured Image > 1 MB", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    } else {
+                        if (isBase64UnderFirestoreLimit(base64Image)) {
+                            authdb.collection("Base64Images").document(currentUid)
+                                .collection("ProfilePicture").document().update("base64", base64Image)
+                            Log.d("Base64", "Base64 is updated")
+                            btprofile.setImageBitmap(bitmap)
+                        } else {
+                            Toast.makeText(this, "Failed. Captured Image > 1 MB", Toast.LENGTH_LONG).show()
+                        }
                     }
                 }
             }
@@ -141,85 +166,115 @@ class MainActivity : AppCompatActivity() {
         btprofile = findViewById(R.id.profile)
 
         headerView = sideNavigation.getHeaderView(0)
-        ivProfilePic= headerView.findViewById(R.id.iv_profile_pic)
-        tvName= headerView.findViewById(R.id.tv_name)
-        tvLocation= headerView.findViewById(R.id.tv_location)
-        tvEmail= headerView.findViewById(R.id.tv_email)
+        ivProfilePic = headerView.findViewById(R.id.iv_profile_pic)
+        tvName = headerView.findViewById(R.id.tv_name)
+        tvLocation = headerView.findViewById(R.id.tv_location)
+        tvEmail = headerView.findViewById(R.id.tv_email)
 
         setProfileIcon()
         setSideNavigation()
 
         if (savedInstanceState == null) {
-            sideNavigation.isEnabled=false
-            bottomNavigation.isEnabled=false
+            sideNavigation.isEnabled = false
+            bottomNavigation.isEnabled = false
             supportFragmentManager.beginTransaction()
                 .replace(R.id.fm_main_activity, HomeFragment(), "HomeFragment")
                 .commit()
-            currentFragmentTag= "HomeFragment"
-            sideNavigation.isEnabled=true
-            bottomNavigation.isEnabled=true
+            currentFragmentTag = "HomeFragment"
+            sideNavigation.isEnabled = true
+            bottomNavigation.isEnabled = true
         }
 
         bottomNavigation.setOnItemSelectedListener { menuItem ->
-            when (menuItem.itemId) {
-                R.id.home_navigation -> {
-                    bottomNavigation.isEnabled=false
+            if (isCurrentFragmentLoading()) {
+                pendingNavigationAction = {
+                    performNavigation(menuItem.itemId)
+                    bottomNavigation.selectedItemId = menuItem.itemId
+                }
+                Toast.makeText(this, "Please wait, loading data...", Toast.LENGTH_SHORT).show()
+                false
+            } else {
+                performNavigation(menuItem.itemId)
+                true
+            }
+        }
+    }
+
+    private fun performNavigation(itemId: Int) {
+        bottomNavigation.isEnabled = false
+        when (itemId) {
+            R.id.home_navigation -> {
+                if (currentFragmentTag != "HomeFragment") {
                     supportFragmentManager.beginTransaction()
                         .replace(R.id.fm_main_activity, HomeFragment(), "HomeFragment")
                         .commit()
                     currentFragmentTag = "HomeFragment"
-                    bottomNavigation.isEnabled=true
                 }
-                R.id.chat_navigation -> {
-                    bottomNavigation.isEnabled=false
+            }
+            R.id.chat_navigation -> {
+                if (currentFragmentTag != "ChatFragment") {
                     supportFragmentManager.beginTransaction()
                         .replace(R.id.fm_main_activity, ChatFragment(), "ChatFragment")
                         .commit()
                     currentFragmentTag = "ChatFragment"
-                    bottomNavigation.isEnabled=true
-                }
-                R.id.sell_navigation -> {
-                    bottomNavigation.isEnabled=false
-                    if (currentFragmentTag != "SellFragment") {
-                        supportFragmentManager.beginTransaction()
-                            .replace(R.id.fm_main_activity, SellFragment(), "SellFragment")
-                            .commit()
-                        currentFragmentTag = "SellFragment"
-                    }
-                    bottomNavigation.isEnabled=true
-                }
-                R.id.mybooks_navigation -> {
-                    bottomNavigation.isEnabled=false
-                        supportFragmentManager.beginTransaction()
-                            .replace(R.id.fm_main_activity, MyBooksFragment(), "MyBooksFragment")
-                            .commit()
-                        currentFragmentTag = "MyBooksFragment"
-                    bottomNavigation.isEnabled=true
-                }
-                R.id.myoffers_navigation -> {
-                    bottomNavigation.isEnabled=false
-                        supportFragmentManager.beginTransaction()
-                            .replace(R.id.fm_main_activity, MyOffersFragment(), "MyOffersFragment")
-                            .commit()
-                        currentFragmentTag = "MyOffersFragment"
-                    bottomNavigation.isEnabled=true
                 }
             }
-            true
+            R.id.sell_navigation -> {
+                if (currentFragmentTag != "SellFragment") {
+                    supportFragmentManager.beginTransaction()
+                        .replace(R.id.fm_main_activity, SellFragment(), "SellFragment")
+                        .commit()
+                    currentFragmentTag = "SellFragment"
+                }
+            }
+            R.id.mybooks_navigation -> {
+                if (currentFragmentTag != "MyBooksFragment") {
+                    supportFragmentManager.beginTransaction()
+                        .replace(R.id.fm_main_activity, MyBooksFragment(), "MyBooksFragment")
+                        .commit()
+                    currentFragmentTag = "MyBooksFragment"
+                }
+            }
+            R.id.myoffers_navigation -> {
+                if (currentFragmentTag != "MyOffersFragment") {
+                    supportFragmentManager.beginTransaction()
+                        .replace(R.id.fm_main_activity, MyOffersFragment(), "MyOffersFragment")
+                        .commit()
+                    currentFragmentTag = "MyOffersFragment"
+                }
+            }
+        }
+        bottomNavigation.isEnabled = true
+    }
+
+    fun onFragmentLoadingStateChanged(isLoading: Boolean) {
+        isFragmentLoading = isLoading
+        if (!isLoading && pendingNavigationAction != null) {
+            pendingNavigationAction!!()
+            pendingNavigationAction = null
+        }
+    }
+
+    private fun isCurrentFragmentLoading(): Boolean {
+        val fragment = supportFragmentManager.findFragmentByTag(currentFragmentTag)
+        return when (fragment) {
+            is HomeFragment -> fragment.isLoading()
+            is MyBooksFragment -> fragment.isLoading()
+            is ChatFragment -> fragment.isLoading()
+            is MyOffersFragment -> fragment.isLoading()
+            else -> false
         }
     }
 
     private fun setProfileIcon() {
-        authdb.collection("Base64Images").document(currentUid!!)
+        authdb.collection("Base64Images").document(currentUid)
             .collection("ProfilePicture").get()
             .addOnSuccessListener { result ->
-                for (pic in result){
+                for (pic in result) {
                     val data = pic.data
                     val base64Image = data["base64"].toString()
                     val profileImage = base64ToBitmap(base64Image)
-                    // In Main Activity
                     btprofile.setImageBitmap(profileImage)
-                    // In side Navigation
                     ivProfilePic.setImageBitmap(profileImage)
                 }
             }
@@ -238,98 +293,160 @@ class MainActivity : AppCompatActivity() {
 
     private fun setSideNavigation() {
         sideNavigation.setNavigationItemSelectedListener { menuItem ->
-            when (menuItem.itemId) {
-                R.id.profile_navigation -> {
-                    sideNavigation.isEnabled=false
-                    val options = arrayOf("Edit Profile Picture", "Edit Name", "Edit Location")
-                    val ad = android.app.AlertDialog.Builder(this)
-                    ad.setTitle("Select one option")
-                    ad.setItems(options) { dialog, index ->
-                        if (options[index] == "Edit Profile Picture") {
-                            val items = arrayOf("Camera", "Gallery")
-                            var ad = android.app.AlertDialog.Builder(this)
-                            ad.setTitle("Open")
-                            ad.setItems(items) { dialog, index ->
-                                if (items[index] == "Gallery") {
-                                    val getImageFromGallery = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
-                                    getImageFromGallery.type = "image/*"
-                                    galleryImage.launch(getImageFromGallery)
-                                } else if (items[index] == "Camera") {
-                                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                                        val captureImage = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-                                        capturedImage.launch(captureImage)
-                                    } else {
-                                        requestPermissionLauncherForCamera.launch(Manifest.permission.CAMERA)
-                                    }
-                                }
+            if (isCurrentFragmentLoading()) {
+                pendingNavigationAction = {
+                    when (menuItem.itemId) {
+                        R.id.profile_navigation -> {
+                            showProfileOptions()
+                        }
+                        R.id.notification_navigation -> {
+                            sideNavigation.isEnabled = false
+                            supportFragmentManager.beginTransaction()
+                                .replace(R.id.fm_main_activity, NotificationFragment(), "NotificationFragment")
+                                .commit()
+                            currentFragmentTag = "NotificationFragment"
+                            sideNavigation.isEnabled = true
+                        }
+                        R.id.logout_navigation -> {
+                            sideNavigation.isEnabled = false
+                            FirebaseAuth.getInstance().signOut()
+                            startActivity(Intent(this, LogIn::class.java))
+                            finish()
+                            sideNavigation.isEnabled = true
+                        }
+                    }
+                    drawerLayout.closeDrawer(sideNavigation)
+                }
+                Toast.makeText(this, "Please wait, loading data...", Toast.LENGTH_SHORT).show()
+                false
+            } else {
+                when (menuItem.itemId) {
+                    R.id.profile_navigation -> {
+                        showProfileOptions()
+                        true
+                    }
+                    R.id.notification_navigation -> {
+                        sideNavigation.isEnabled = false
+                        supportFragmentManager.beginTransaction()
+                            .replace(R.id.fm_main_activity, NotificationFragment(), "NotificationFragment")
+                            .commit()
+                        currentFragmentTag = "NotificationFragment"
+                        sideNavigation.isEnabled = true
+                        true
+                    }
+                    R.id.logout_navigation -> {
+                        sideNavigation.isEnabled = false
+                        FirebaseAuth.getInstance().signOut()
+                        startActivity(Intent(this, LogIn::class.java))
+                        finish()
+                        sideNavigation.isEnabled = true
+                        true
+                    }
+                    else -> false
+                }.also {
+                    drawerLayout.closeDrawer(sideNavigation)
+                }
+            }
+        }
+    }
+
+    private fun showProfileOptions() {
+        sideNavigation.isEnabled = false
+        val options = arrayOf("Edit Profile Picture", "Edit Name", "Edit Location")
+        val ad = AlertDialog.Builder(this)
+        ad.setTitle("Select one option")
+        ad.setItems(options) { dialog, index ->
+            when (options[index]) {
+                "Edit Profile Picture" -> {
+                    val items = arrayOf("Camera", "Gallery")
+                    val ad = AlertDialog.Builder(this)
+                    ad.setTitle("Open")
+                    ad.setItems(items) { dialog, index ->
+                        if (items[index] == "Gallery") {
+                            val getImageFromGallery = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+                            getImageFromGallery.type = "image/*"
+                            galleryImage.launch(getImageFromGallery)
+                        } else if (items[index] == "Camera") {
+                            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                                val captureImage = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+                                capturedImage.launch(captureImage)
+                            } else {
+                                requestPermissionLauncherForCamera.launch(Manifest.permission.CAMERA)
                             }
-                            var adcreate = ad.create()
-                            adcreate.show()
-                        } else if (options[index] == "Edit Name") {
-                            val builder = AlertDialog.Builder(this)
-                            builder.setTitle("Enter New Name")
-                            val input = EditText(this)
-                            input.inputType = InputType.TYPE_CLASS_TEXT
-                            builder.setView(input)
-                            builder.setPositiveButton("Rename") { _, _ ->
-                                val newName = input.text.toString().trim()
+                        }
+                    }
+                    val adcreate = ad.create()
+                    adcreate.show()
+                }
+                "Edit Name" -> {
+                    val builder = AlertDialog.Builder(this)
+                    builder.setTitle("Enter New Name")
+                    val input = EditText(this)
+                    input.inputType = InputType.TYPE_CLASS_TEXT
+                    builder.setView(input)
+                    builder.setPositiveButton("Rename") { _, _ ->
+                        val newName = input.text.toString().trim()
+                        if (isCurrentFragmentLoading()) {
+                            Toast.makeText(this, "Please wait, loading data...", Toast.LENGTH_SHORT).show()
+                            pendingNavigationAction = {
                                 if (newName.isNotEmpty()) {
-                                    authdb.collection("users").document(currentUid!!).update("Full Name", newName)
+                                    authdb.collection("users").document(currentUid).update("Full Name", newName)
                                     tvName.text = newName
                                     Toast.makeText(this, "Name successfully changed", Toast.LENGTH_LONG).show()
                                 } else {
                                     Toast.makeText(this, "Name cannot be empty", Toast.LENGTH_LONG).show()
                                 }
                             }
-                            builder.setNegativeButton("Cancel", null)
-                            builder.show()
+                        } else {
+                            if (newName.isNotEmpty()) {
+                                authdb.collection("users").document(currentUid).update("Full Name", newName)
+                                tvName.text = newName
+                                Toast.makeText(this, "Name successfully changed", Toast.LENGTH_LONG).show()
+                            } else {
+                                Toast.makeText(this, "Name cannot be empty", Toast.LENGTH_LONG).show()
+                            }
                         }
-                        else if(options[index] == "Edit Location"){
-                            val builder = AlertDialog.Builder(this)
-                            builder.setTitle("Enter New Location")
-                            val input = EditText(this)
-                            input.inputType = InputType.TYPE_CLASS_TEXT
-                            builder.setView(input)
-                            builder.setPositiveButton("Rename") { _, _ ->
-                                val newLocation = input.text.toString().trim()
+                    }
+                    builder.setNegativeButton("Cancel", null)
+                    builder.show()
+                }
+                "Edit Location" -> {
+                    val builder = AlertDialog.Builder(this)
+                    builder.setTitle("Enter New Location")
+                    val input = EditText(this)
+                    input.inputType = InputType.TYPE_CLASS_TEXT
+                    builder.setView(input)
+                    builder.setPositiveButton("Rename") { _, _ ->
+                        val newLocation = input.text.toString().trim()
+                        if (isCurrentFragmentLoading()) {
+                            Toast.makeText(this, "Please wait, loading data...", Toast.LENGTH_SHORT).show()
+                            pendingNavigationAction = {
                                 if (newLocation.isNotEmpty()) {
-                                    authdb.collection("users").document(currentUid!!).update("Location", newLocation)
+                                    authdb.collection("users").document(currentUid).update("Location", newLocation)
                                     tvLocation.text = newLocation
                                     Toast.makeText(this, "Location successfully changed", Toast.LENGTH_LONG).show()
                                 } else {
                                     Toast.makeText(this, "Location cannot be empty", Toast.LENGTH_LONG).show()
                                 }
                             }
-                            builder.setNegativeButton("Cancel", null)
-                            builder.show()
+                        } else {
+                            if (newLocation.isNotEmpty()) {
+                                authdb.collection("users").document(currentUid).update("Location", newLocation)
+                                tvLocation.text = newLocation
+                                Toast.makeText(this, "Location successfully changed", Toast.LENGTH_LONG).show()
+                            } else {
+                                Toast.makeText(this, "Location cannot be empty", Toast.LENGTH_LONG).show()
+                            }
                         }
                     }
-                    var adcreate = ad.create()
-                    adcreate.show()
-                    sideNavigation.isEnabled=true
-                    true
+                    builder.setNegativeButton("Cancel", null)
+                    builder.show()
                 }
-                R.id.notification_navigation -> {
-                    sideNavigation.isEnabled=false
-                    supportFragmentManager.beginTransaction()
-                        .replace(R.id.fm_main_activity, NotificationFragment(), "NotificationFragment")
-                        .commit()
-                    sideNavigation.isEnabled=true
-                    true
-                }
-                R.id.logout_navigation -> {
-                    sideNavigation.isEnabled=false
-                    FirebaseAuth.getInstance().signOut()
-                    startActivity(Intent(this, LogIn::class.java))
-                    finish()
-                    sideNavigation.isEnabled=true
-                    true
-                }
-                else -> false
-            }.also {
-                drawerLayout.closeDrawer(sideNavigation)
             }
         }
+        val adcreate = ad.create()
+        adcreate.show()
+        sideNavigation.isEnabled = true
     }
 
     fun base64ToBitmap(base64Str: String): Bitmap? {

@@ -52,6 +52,8 @@ class BookDetailFragment : Fragment() {
     private lateinit var publisherTextView: TextView
     private lateinit var editionTextView: TextView
     private lateinit var isbnTextView: TextView
+    private lateinit var location: TextView
+    private lateinit var ownerName: TextView
     private lateinit var conditionTextView: TextView
     private lateinit var bidAmountEditText: EditText
     private lateinit var bidBookEditText: EditText
@@ -70,10 +72,12 @@ class BookDetailFragment : Fragment() {
     private lateinit var bidBookLayout: LinearLayout
     private lateinit var bidPriceLayout: LinearLayout
 
-    private lateinit var bookOwnerId: String
+    private var bookOwnerId: String=""
     private var dealMode: String = ""
     private var pricee: String = ""
     private var exchangeBooke: String = ""
+    private var locat: String=""
+    private var ownernam: String=""
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -91,7 +95,6 @@ class BookDetailFragment : Fragment() {
             dealMode=it.getString("dealMode").toString()
             pricee=it.getString("price").toString()
             exchangeBooke=it.getString("exchangeBook").toString()
-            Toast.makeText(requireContext(), dealMode, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -131,6 +134,10 @@ class BookDetailFragment : Fragment() {
         bidBookTextView = view.findViewById(R.id.tvbidbook)
         bidBookLayout = view.findViewById(R.id.viewbidbook)
         bidPriceLayout = view.findViewById(R.id.viewbidprice)
+
+        location=view.findViewById(R.id.location)
+        ownerName=view.findViewById(R.id.ownername)
+
 
         if(dealMode.toString()=="Sell")
         {
@@ -206,7 +213,13 @@ class BookDetailFragment : Fragment() {
 
                 bookOwnerId = result.getString("uid").toString()
                 dealMode = result.getString("Deal Mode").toString()
-
+                firestoreDB.collection("users").document(bookOwnerId).get().addOnSuccessListener {
+                        result->
+                    locat = result.getString("Location") ?: "Unknown Location"
+                    ownernam = result.getString("Full Name") ?: "Unknown Name"
+                    location.text=locat
+                    ownerName.text=ownernam
+                }
                 if (bookOwnerId == auth.currentUser?.uid) {
                     placeBidButtonLayout.visibility = View.GONE
                     bidBookLayout.visibility = View.GONE
